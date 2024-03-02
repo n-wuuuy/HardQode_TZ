@@ -44,10 +44,6 @@ class ResetGroupsView(APIView):
                                                                                sum_students=Count('group__students'))
         if products[0].started:
             return JsonResponse({"message": "The course has already started. Can't rebuild group."})
-        groups = Group.objects.filter(products=products[0])
-        users = [person_id.id for person_id in User.objects.filter(students__in=groups)]
-
-        print(products.wagjklwajg)
         list_groups = create_list_groups_to_fill(products)
         distribution_users_into_groups(list_groups)
         return JsonResponse({"message": "Groups successfully reassembled."})
