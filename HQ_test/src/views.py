@@ -29,7 +29,7 @@ class LessonsListView(generics.ListAPIView):
 class AddUserView(APIView):
     permission_classes = [IsAuthenticated, ]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request, **kwargs):
         product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
         groups = Group.objects.filter(products_id=kwargs.get('product_id')).annotate(
             student_count=Count('students')).order_by('id')
@@ -38,7 +38,7 @@ class AddUserView(APIView):
 
 
 class ResetGroupsView(APIView):
-    def post(self, request, *args, **kwargs):
+    def post(self, **kwargs):
         product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
         if product.started:
             return JsonResponse({"message": "The course has already started. Can't rebuild group."})

@@ -31,7 +31,7 @@ def _create_data_to_separate_group(product: Product, users: list) -> tuple:
             group_count -= 1
         avg_users_in_groups = floor(students_count / group_count)
         additional_users = students_count % group_count
-    except ZeroDivisionError as e:
+    except ZeroDivisionError:
         avg_users_in_groups = 0
         additional_users = 0
     finally:

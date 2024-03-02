@@ -14,14 +14,23 @@ class Product(models.Model):
     min_students = models.PositiveIntegerField()
     started = models.BooleanField(default=False)
 
+    def __str__(self):
+        return self.name
+
 
 class Lesson(models.Model):
     name = models.CharField(max_length=256)
     video = models.URLField()
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='lesson')
 
+    def __str__(self):
+        return self.name
+
 
 class Group(models.Model):
     name = models.CharField(max_length=256)
     students = models.ManyToManyField(User, related_name='students', blank=True, null=True)
     products = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='group')
+
+    def __str__(self):
+        return self.name
