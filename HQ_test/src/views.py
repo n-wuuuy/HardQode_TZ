@@ -1,11 +1,11 @@
 from django.contrib.auth.models import User
-from django.db.models import Count, F, Case, When
+from django.db.models import Count
 from django.http import JsonResponse
 from rest_framework import generics
-from rest_framework.generics import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from src.group_service import distribution_users_into_groups, create_list_groups_to_fill
+from src.group_service import add_student, sorting_group
 from src.models import Product, Lesson, Group
 from src.permissions import HasAccessToProduct
 from src.serializers import ProductsSerializer, LessonSerializer, ProductsStaticticSerializer
@@ -27,25 +27,27 @@ class LessonsListView(generics.ListAPIView):
 
 
 class AddUserView(APIView):
+    permission_classes = [IsAuthenticated, ]
+
     def post(self, request, *args, **kwargs):
-        product = get_object_or_404(Product, id=kwargs.get('product_id'))
+        product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
         groups = Group.objects.filter(products_id=kwargs.get('product_id')).annotate(
-            student_count=Count('students'))
-        for group in groups:
-            if group.student_count < product.max_students:
-                group.students.add(request.user.id)
-                return JsonResponse({"message": "Users distributed to groups successfully."})
-        return JsonResponse({"message": "All groups are full."})
+            student_count=Count('students')).order_by('id')
+        massage = add_student(product, groups, request.user.id)
+        return JsonResponse(massage)
 
 
 class ResetGroupsView(APIView):
     def post(self, request, *args, **kwargs):
-        products = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'),
-                                                                               sum_students=Count('group__students'))
-        if products[0].started:
+        product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
+        if product.started:
             return JsonResponse({"message": "The course has already started. Can't rebuild group."})
-        list_groups = create_list_groups_to_fill(products)
-        distribution_users_into_groups(list_groups)
+        groups = Group.objects.filter(products=product)
+        try:
+            sorting_group(product, groups)
+        except Exception as e:
+            exception_massage = e.__str__()
+            return JsonResponse({"message": exception_massage})
         return JsonResponse({"message": "Groups successfully reassembled."})
 
 

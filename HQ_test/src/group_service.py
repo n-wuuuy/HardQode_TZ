@@ -1,38 +1,57 @@
-from django.db.models import QuerySet, Count
+from math import floor
 
-from src.models import Group
+from django.contrib.auth.models import User
+from django.db.models import QuerySet
 
-
-def distribution_users_into_groups(groups: QuerySet) -> None:
-    while groups.last().student_count - groups.first().student_count >= 1:
-        max_group = groups.last()
-        min_group = groups.first()
-        user = max_group.students.last().id
-        max_group.students.remove(user)
-        min_group.students.add(user)
+from src.models import Product
 
 
-def create_list_groups_to_fill(product: QuerySet) -> QuerySet:
-    group_len = product[0].group_count
-    print(group_len)
-    students = product[0].sum_students
-    while (students / group_len) < product[0].min_students:
-        group_len -= 1
-    # исправить
-    sliced_queryset = Group.objects.filter(products_id=product[0].id).annotate(
-            student_count=Count('students')).order_by('-student_count')[:group_len]
-    groups = Group.objects.filter(id__in=sliced_queryset).annotate(
-            student_count=Count('students')).order_by('student_count')
-    return groups
-
-
-def add_student_standard(groups: QuerySet, max_students: int, user_id: int) -> None:
+def _distribution_users_into_groups(groups: QuerySet, users: list,
+                                    additional_users: int,
+                                    avg_users_in_groups: int) -> None:
+    """Filling students"""
     for group in groups:
-        if group.student_count < max_students:
+        group.students.clear()
+        split_students = 0
+        if additional_users:
+            split_students = 1
+            additional_users -= 1
+        group.students.add(*users[:avg_users_in_groups+split_students])
+        users = users[avg_users_in_groups+split_students:]
+
+
+def _create_data_to_separate_group(product: Product, users: list) -> tuple:
+    """Finding data for user distribution.
+       Calculates the number of groups required for the minimum filling and
+       the number of users in these groups."""
+    try:
+        group_count = product.group_count
+        students_count = len(users)
+        while (students_count / group_count) < product.min_students:
+            group_count -= 1
+        avg_users_in_groups = floor(students_count / group_count)
+        additional_users = students_count % group_count
+    except ZeroDivisionError as e:
+        avg_users_in_groups = 0
+        additional_users = 0
+    finally:
+        return avg_users_in_groups, additional_users
+
+
+def add_student(product: Product, groups: QuerySet, user_id: int) -> dict[str, str]:
+    """Adds a student to a group."""
+    for group in groups:
+        if group.student_count < product.max_students:
             group.students.add(user_id)
+            return {"message": "Users distributed to groups successfully."}
+    return {"message": "All groups are full."}
 
 
-def add_student_with_sorting(product: QuerySet, max_students: int, min_students: int, user_id: int):
-    add_student_standard(product, max_students, user_id)
-    list_groups = create_list_groups_to_fill(product)
-    distribution_users_into_groups(list_groups)
+def sorting_group(product: Product, groups: QuerySet) -> None:
+    """Group distribution algorithm"""
+    users = [person_id.id for person_id in User.objects.filter(students__in=groups)]
+    print(users)
+    avg_users_in_groups, additional_users = _create_data_to_separate_group(product, users)
+    if avg_users_in_groups == 0:
+        raise Exception("This product has no groups.")
+    _distribution_users_into_groups(groups, users, additional_users, avg_users_in_groups)
