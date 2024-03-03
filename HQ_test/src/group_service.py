@@ -50,7 +50,6 @@ def add_student(product: Product, groups: QuerySet, user_id: int) -> dict[str, s
 def sorting_group(product: Product, groups: QuerySet) -> None:
     """Group distribution algorithm"""
     users = [person_id.id for person_id in User.objects.filter(students__in=groups)]
-    print(users)
     avg_users_in_groups, additional_users = _create_data_to_separate_group(product, users)
     if avg_users_in_groups == 0:
         raise Exception("This product has no groups.")

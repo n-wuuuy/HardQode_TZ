@@ -31,6 +31,8 @@ class AddUserView(APIView):
 
     def post(self, request, **kwargs):
         product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
+        if Group.objects.filter(products_id=kwargs.get('product_id'), students__id=request.user.id).exists():
+            return JsonResponse({"message": "This user is already included in the group."})
         groups = Group.objects.filter(products_id=kwargs.get('product_id')).annotate(
             student_count=Count('students')).order_by('id')
         massage = add_student(product, groups, request.user.id)
@@ -38,7 +40,7 @@ class AddUserView(APIView):
 
 
 class ResetGroupsView(APIView):
-    def post(self, **kwargs):
+    def post(self, request, **kwargs):
         product = Product.objects.filter(pk=kwargs.get('product_id')).annotate(group_count=Count('group'))[0]
         if product.started:
             return JsonResponse({"message": "The course has already started. Can't rebuild group."})

@@ -24,7 +24,7 @@ class ProductsStaticticSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('name', 'student_quantity', 'product_fullness', 'product_fullness1', 'acquisition_percentage')
+        fields = ('name', 'student_quantity', 'product_fullness', 'acquisition_percentage')
 
     def get_product_fullness(self, obj):
         group_count = Group.objects.filter(products_id=obj.id).count()
